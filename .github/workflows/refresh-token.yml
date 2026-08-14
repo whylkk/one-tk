@@ -20,16 +20,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # 必须拉完整历史，否则 push 容易 non-fast-forward
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Check / fetch token
         id: fetch
         env:
-          # 提前 1 小时刷新（可改）
           REFRESH_SKEW_SEC: '3600'
         run: |
           set -e
@@ -54,8 +57,22 @@ jobs:
       - name: Commit & push
         if: steps.fetch.outputs.changed == 'true'
         run: |
+          set -e
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # 远程可能已有新提交（网页改文件 / 手动 push），先同步再推
+          git fetch origin main
+          git pull --rebase origin main || true
+
           git add token.json
+          if git diff --staged --quiet; then
+            echo "Nothing to commit after sync."
+            exit 0
+          fi
+
           git commit -m "chore: refresh token_one ($(date -u +%Y-%m-%dT%H:%MZ))"
-          git push
+
+          # 再拉一次避免竞态，然后推送
+          git pull --rebase origin main || true
+          git push origin HEAD:main
