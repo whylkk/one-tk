@@ -33,31 +33,6 @@ const BOX_HOSTS = [
 ];
 const BOX_AES_KEY = 'dnf45as45fs1ace1';
 const BOX_AES_IV = 'dn5as4fs1ac5f4e1';
-const ONE_AES_KEY = 'l*bv%Ziq000Biaog';
-const ONE_AES_IV = '8597506002939249';
-
-function oneEnc(plain) {
-  const c = crypto.createCipheriv('aes-128-cbc', Buffer.from(ONE_AES_KEY), Buffer.from(ONE_AES_IV));
-  return Buffer.concat([c.update(plain, 'utf8'), c.final()]).toString('base64');
-}
-function oneDec(b64) {
-  const d = crypto.createDecipheriv('aes-128-cbc', Buffer.from(ONE_AES_KEY), Buffer.from(ONE_AES_IV));
-  return Buffer.concat([d.update(Buffer.from(String(b64).trim(), 'base64')), d.final()]).toString('utf8');
-}
-function loadTokenFile() {
-  if (!fs.existsSync(OUT)) return null;
-  const raw = fs.readFileSync(OUT, 'utf8').trim();
-  if (!raw) return null;
-  // support plain JSON (legacy) or AES base64
-  if (raw.charAt(0) === '{') {
-    try { return JSON.parse(raw); } catch (_) { return null; }
-  }
-  try {
-    return JSON.parse(oneDec(raw));
-  } catch (_) {
-    return null;
-  }
-}
 
 function nowSec() {
   return Math.floor(Date.now() / 1000);
@@ -85,7 +60,8 @@ function isTokenValid(token, skewSec) {
 
 function readExisting() {
   try {
-    return loadTokenFile();
+    if (!fs.existsSync(OUT)) return null;
+    return JSON.parse(fs.readFileSync(OUT, 'utf8'));
   } catch (_) {
     return null;
   }
@@ -203,11 +179,9 @@ async function pullFresh() {
   }
 
   const fresh = await pullFresh();
-  // 仓库里只存 AES 密文，避免明文 token 暴露
-  const enc = oneEnc(JSON.stringify(fresh));
-  fs.writeFileSync(OUT, enc + '\n', 'utf8');
+  fs.writeFileSync(OUT, JSON.stringify(fresh, null, 2) + '\n', 'utf8');
   process.stderr.write(
-    '[ok] wrote encrypted token.json exp=' + fresh.exp_iso + ' host=' + fresh.source_host + ' encLen=' + enc.length + '\n'
+    '[ok] wrote token.json exp=' + fresh.exp_iso + ' host=' + fresh.source_host + '\n'
   );
   process.stdout.write(JSON.stringify(fresh, null, 2) + '\n');
 })().catch((e) => {
