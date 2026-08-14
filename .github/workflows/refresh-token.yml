@@ -1,1 +1,61 @@
+name: refresh-one-token
 
+on:
+  schedule:
+    # 每 6 小时检查一次；未过期会 skip，不推送
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: '强制刷新（忽略未过期）'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check / fetch token
+        id: fetch
+        env:
+          # 提前 1 小时刷新（可改）
+          REFRESH_SKEW_SEC: '3600'
+        run: |
+          set -e
+          BEFORE=""
+          if [ -f token.json ]; then
+            BEFORE=$(sha256sum token.json | awk '{print $1}')
+          fi
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            node scripts/fetch_box_token.js --force | tee /tmp/out.json
+          else
+            node scripts/fetch_box_token.js | tee /tmp/out.json
+          fi
+          AFTER=$(sha256sum token.json | awk '{print $1}')
+          if [ "$BEFORE" = "$AFTER" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Token unchanged (still valid or same content)."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Token file updated."
+          fi
+
+      - name: Commit & push
+        if: steps.fetch.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add token.json
+          git commit -m "chore: refresh token_one ($(date -u +%Y-%m-%dT%H:%MZ))"
+          git push
