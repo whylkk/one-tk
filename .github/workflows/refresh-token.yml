@@ -3,7 +3,7 @@ name: refresh-one-token
 on:
   schedule:
     # 每 6 小时检查一次；未过期会 skip，不推送
-    - cron: '0 */6 * * *'
+    - cron: '0 0 */2 * *'
   workflow_dispatch:
     inputs:
       force:
