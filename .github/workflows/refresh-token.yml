@@ -8,8 +8,8 @@ on:
     inputs:
       force:
         description: '强制刷新（忽略未过期）'
-        required: false
-        default: 'false'
+        required: true
+        default: 'true'
         type: boolean
 
 jobs:
