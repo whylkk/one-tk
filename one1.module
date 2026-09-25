@@ -1,5 +1,5 @@
 #!name=One1
-#!desc=One App：bootstrap 续期 + 已购列表 + 真链详情 + 去广告（Egern）
+#!desc=One App multi-client (Egern)
 #!category=Media
 #!author=whylkk
 
@@ -10,8 +10,8 @@ hostname = api.*, *.einhn4.com, *.em1oifd0.com, *.xqjby.com, *.scycjz.com, 38.46
 ^https://.*/v2\.5/ad/space reject
 
 [Script]
-http-response ^https?://[^/]+/v2\.5/bootstrap script-path=https://raw.githubusercontent.com/whylkk/one-tk/8a5fb17edef7ad952cb9d1c7ae952c4bc41a4f38/one1.js, requires-body=true, timeout=30, tag=One1-Bootstrap
-http-response ^https?://[^/]+/v2\.5/vip/download script-path=https://raw.githubusercontent.com/whylkk/one-tk/8a5fb17edef7ad952cb9d1c7ae952c4bc41a4f38/one1.js, requires-body=true, timeout=30, tag=One1-VipDL
-http-response ^https?://[^/]+/v2\.5/article/detail script-path=https://raw.githubusercontent.com/whylkk/one-tk/8a5fb17edef7ad952cb9d1c7ae952c4bc41a4f38/one1.js, requires-body=true, timeout=30, tag=One1-Detail
-http-response ^https?://[^/]+/v2\.5/article/(day|discovery|search|list) script-path=https://raw.githubusercontent.com/whylkk/one-tk/8a5fb17edef7ad952cb9d1c7ae952c4bc41a4f38/one1.js, requires-body=true, timeout=30, tag=One1-List
-http-response ^https?://[^/]+/v2\.5/series/(list|chapters) script-path=https://raw.githubusercontent.com/whylkk/one-tk/8a5fb17edef7ad952cb9d1c7ae952c4bc41a4f38/one1.js, requires-body=true, timeout=30, tag=One1-Series
+http-response ^https?://[^/]+/v2\.5/bootstrap script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-Bootstrap
+http-response ^https?://[^/]+/v2\.5/vip/download script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-VipDL
+http-response ^https?://[^/]+/v2\.5/article/detail script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-Detail
+http-response ^https?://[^/]+/v2\.5/article/(day|discovery|search|list) script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-List
+http-response ^https?://[^/]+/v2\.5/series/(list|chapters) script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-Series
