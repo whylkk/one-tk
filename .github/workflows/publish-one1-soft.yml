@@ -1,6 +1,8 @@
 name: publish-one1-soft
+
 on:
   workflow_dispatch:
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -8,66 +10,21 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+
       - name: Build software-style one1.js
-        run: |
-          python3 << 'PY'
-          from pathlib import Path
-          import urllib.request
+        run: python3 scripts/publish_one1_soft.py
 
-          base = urllib.request.urlopen(
-              'https://cdn.jsdelivr.net/gh/whylkk/one-tk@0679e78c8fe53a3a76e88824d3f5d8cae320b4f8/one1.js',
-              timeout=30
-          ).read().decode('utf-8')
-          i = base.find('const SCRIPT_VERSION')
-          if i < 0:
-              raise SystemExit('bad base')
-          body = base[i:]
-          body = body.replace(
-              "const SCRIPT_VERSION = 'ONE1_MULTI_20260925';",
-              "const SCRIPT_VERSION = 'ONE1_20260925';",
-          )
-          header = r'''/******************************
+      - name: Show header
+        run: head -30 one1.js
 
-脚本功能：One App · 列表已购 / 详情真链 / VIP / 去广告
-下载地址：App Store · One
-脚本作者：whylkk
-更新时间：2026+
-电报频道：https://t.me/GieGie777
-问题反馈：
-使用声明：⚠️此脚本仅供学习与交流，请在下载使用24小时内删除！请勿在中国大陆转载与贩卖！⚠️⚠️⚠️
-
-*******************************
-
-[rewrite_local]
-# > One · bootstrap VIP
-^https?://[^/]+/v2\.5/bootstrap url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
-# > One · vip download
-^https?://[^/]+/v2\.5/vip/download url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
-# > One · article detail 真链
-^https?://[^/]+/v2\.5/article/detail url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
-# > One · 列表已购
-^https?://[^/]+/v2\.5/article/(day|discovery|search|list) url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
-# > One · 系列已购
-^https?://[^/]+/v2\.5/series/(list|chapters) url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
-# > One · 去广告
-^https://.*/v2\.5/ad/space url reject
-
-[mitm]
-hostname = api.*, *.einhn4.com, *.em1oifd0.com, *.xqjby.com, *.scycjz.com, 38.46.10.*, 202.95.22.*, 198.44.248.*, 122.10.20.249
-
-*******************************
-*/
-
-'''
-          Path('one1.js').write_text(header + body, encoding='utf-8')
-          print('wrote', Path('one1.js').stat().st_size)
-          PY
-          head -25 one1.js
-          grep -q 'rewrite_local' one1.js
-          grep -q 'SCRIPT_VERSION' one1.js
-      - name: Commit one1.js only
+      - name: Commit one1.js
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add one1.js
-          git diff --staged --quiet || (git commit -m "feat: one1.js software-style (rewrite_local + mitm header)" && git push)
+          if git diff --staged --quiet; then
+            echo "no changes"
+          else
+            git commit -m "feat: one1.js software-style (rewrite_local + mitm header)"
+            git push
+          fi
