@@ -1,4 +1,26 @@
-const SCRIPT_VERSION = 'ONE1_20260925';
+/**
+ * One · 圈叉脚本（bootstrap 续期优先 + GitHub 兜底）
+ *
+ * 续期顺序：
+ *   ① 缓存有效 → 直接用
+ *   ② 快过期/已过期 → v2.5/bootstrap 续期
+ *   ③ bootstrap 失败 → GitHub token.json
+ *   ④ 仍失败 → FALLBACK / 过期缓存
+ *
+ * 真链特征：路径含 /compress/decry/ 与 /decrypt/
+ *
+ * [rewrite_local]
+ * ^https?://[^/]+/v2\.5/bootstrap url script-response-body one_vip_senplayer.js
+ * ^https?://[^/]+/v2\.5/vip/download url script-response-body one_vip_senplayer.js
+ * ^https?://[^/]+/v2\.5/article/detail url script-response-body one_vip_senplayer.js
+ * ^https?://[^/]+/v2\.5/article/(day|discovery|search|list) url script-response-body one_vip_senplayer.js
+ * ^https?://[^/]+/v2\.5/series/(list|chapters) url script-response-body one_vip_senplayer.js
+ *
+ * [mitm]
+ * hostname = api.*, *.einhn4.com, *.em1oifd0.com, *.xqjby.com, *.scycjz.com, 38.46.10.*, 202.95.22.*, 198.44.248.*, 122.10.20.249
+ */
+
+const SCRIPT_VERSION = 'BOOTSTRAP_FIRST_20260925';
 const DEBUG = true;
 const STORE_KEY = 'one_core_token_v3';
 
@@ -17,6 +39,8 @@ const SIGN_SALT = 'm4n2hjPeYWkD6tFpqKF^3HO^h24P@idT';
 const CHANNEL = 'vjc';
 const ONE_AES_KEY = 'l*bv%Ziq000Biaog';
 const ONE_AES_IV = '8597506002939249';
+const BOX_AES_KEY = 'dnf45as45fs1ace1';
+const BOX_AES_IV = 'dn5as4fs1ac5f4e1';
 
 const ONE_DOMAINS = [
   'https://api.em1oifd0.com/',
@@ -58,44 +82,10 @@ function log() {
         try { parts.push(JSON.stringify(x)); } catch (_) { parts.push(String(x)); }
       } else parts.push(String(x));
     }
-    console.log('[One1][V] ' + parts.join(' '));
+    console.log('[One][V] ' + parts.join(' '));
   } catch (_) {}
 }
-function step(s, d) { log('--', s, d != null ? ('| ' + d) : ''); }
-
-function httpRequest(opts, cb) {
-  var method = String((opts && opts.method) || 'GET').toUpperCase();
-  var url = opts && opts.url;
-  var headers = (opts && opts.headers) || {};
-  var body = opts && opts.body;
-  if (typeof $task !== 'undefined' && $task.fetch) {
-    $task.fetch({ url: url, method: method, headers: headers, body: body })
-      .then(function (resp) {
-        cb(null, { statusCode: resp.statusCode, headers: resp.headers, body: resp.body });
-      })
-      .catch(function (e) { cb(e || new Error('fetch fail')); });
-    return;
-  }
-  if (typeof $httpClient !== 'undefined') {
-    var req = { url: url, headers: headers };
-    if (body != null) req.body = body;
-    var done = function (err, resp, data) {
-      if (err) { cb(err); return; }
-      cb(null, {
-        statusCode: (resp && (resp.status || resp.statusCode)) || 0,
-        headers: (resp && resp.headers) || {},
-        body: data
-      });
-    };
-    if (method === 'GET') $httpClient.get(req, done);
-    else if (method === 'PUT') $httpClient.put(req, done);
-    else if (method === 'DELETE') $httpClient.delete(req, done);
-    else $httpClient.post(req, done);
-    return;
-  }
-  cb(new Error('no http client'));
-}
-
+function step(s, d) { log('──', s, d != null ? '│ ' + d : ''); }
 
 /* ========== tiny-inflate + zlib wrapper ========== */
 var TINF_OK = 0;
@@ -254,12 +244,12 @@ function tinf_inflate_block_data(d, lt, dt) {
     if (sym < 256) {
       d.dest[d.destLen++] = sym;
     } else {
-      var length, dist, offsi, i;
+      var length, dist, offs, i;
       sym -= 257;
       length = tinf_read_bits(d, length_bits[sym], length_base[sym]);
       dist = tinf_decode_symbol(d, dt);
-      offsi = d.destLen - tinf_read_bits(d, dist_bits[dist], dist_base[dist]);
-      for (i = offsi; i < offsi + length; ++i) d.dest[d.destLen++] = d.dest[i];
+      offs = d.destLen - tinf_read_bits(d, dist_bits[dist], dist_base[dist]);
+      for (i = offs; i < offs + length; ++i) d.dest[d.destLen++] = d.dest[i];
     }
   }
 }
@@ -389,12 +379,12 @@ function md5(str){
 function buildSign(ts){return md5(md5('0.0.0.0.3.'+ts+'.'+USER_KEY+'.'+UUID)+SIGN_SALT);}
 
 function nowSec(){return Math.floor(Date.now()/1000);}
-function short(s,n){s=String(s||'');return s.length>(n||100)?s.slice(0,n)+'...':s;}
-function formQuery(data){const obj=data||{};return Object.keys(obj).sort().map(function(k){return k+'='+(obj[k]==null?'':obj[k]);}).join('&');}
+function short(s,n){s=String(s||'');return s.length>(n||100)?s.slice(0,n)+'…':s;}
+function formQuery(data){const obj=data||{};return Object.keys(obj).sort().map(k=>k+'='+(obj[k]==null?'':obj[k])).join('&');}
 function joinUrl(base,path){if(!path)return'';if(/^https?:\/\//i.test(path))return path;if(!base)return path;return String(base).replace(/\/+$/,'')+'/'+String(path).replace(/^\/+/,'');}
 function isPlainJson(t){t=String(t||'').trim();return t.charAt(0)==='{'||t.charAt(0)==='[';}
 function looksLikeBase64(t){t=String(t||'').trim().replace(/^"|"$/g,'');return t.length>=16&&/^[A-Za-z0-9+/=]+$/.test(t);}
-function parseForm(q){const out={};String(q||'').split('&').forEach(function(pair){if(!pair)return;const i=pair.indexOf('=');const k=i>=0?decodeURIComponent(pair.slice(0,i)):decodeURIComponent(pair);const v=i>=0?decodeURIComponent(pair.slice(i+1)||''):'';if(k)out[k]=v;});return out;}
+function parseForm(q){const out={};String(q||'').split('&').forEach(pair=>{if(!pair)return;const i=pair.indexOf('=');const k=i>=0?decodeURIComponent(pair.slice(0,i)):decodeURIComponent(pair);const v=i>=0?decodeURIComponent(pair.slice(i+1)||''):'';if(k)out[k]=v;});return out;}
 function getPath(){try{const u=($request&&$request.url)||'';const m=u.match(/\/v2\.5\/[a-zA-Z0-9_\/.-]+/);return m?m[0]:'';}catch(_){return'';}}
 
 function storeWrite(obj){
@@ -456,7 +446,7 @@ function tokenLeftSec(token){
 
 /* ========== bootstrap 续期（内置） ========== */
 function postBootstrap(baseUrl, oldToken, cb){
-  if(typeof $task==='undefined'&&typeof $httpClient==='undefined'){cb(null,'no http');return;}
+  if(typeof $task==='undefined'||!$task.fetch){cb(null,'no $task.fetch');return;}
   const base=String(baseUrl||ONE_DOMAINS[0]).replace(/\/+$/,'')+'/';
   const url=base+'v2.5/bootstrap';
   const ts=nowSec(),sign=buildSign(ts);
@@ -469,8 +459,7 @@ function postBootstrap(baseUrl, oldToken, cb){
   };
   if(oldToken)headers.token=oldToken;
   step('bootstrap.try',url);
-  httpRequest({url:url,method:'POST',headers:headers,body:body},function(err,resp){
-    if(err){cb(null,String(err));return;}
+  $task.fetch({url:url,method:'POST',headers:headers,body:body}).then(function(resp){
     try{
       let text=resp&&resp.body!=null?String(resp.body).trim():'';
       step('bootstrap.raw','st='+(resp.statusCode||'')+' len='+text.length);
@@ -502,7 +491,7 @@ function postBootstrap(baseUrl, oldToken, cb){
       step('bootstrap.ok','left='+tokenLeftSec(tok)+'s len='+tok.length);
       cb(saved,null);
     }catch(e){cb(null,e.message||e);}
-  });
+  }).catch(function(e){cb(null,String(e));});
 }
 
 function refreshTokenViaBootstrap(seed,cb){
@@ -535,6 +524,7 @@ function refreshTokenViaBootstrap(seed,cb){
         cb(saved);
         return;
       }
+      // 即使本地判为即将过期，只要拿到 token 也接受（服务端刚签发通常可用）
       if(saved&&saved.tokenOne){
         storeWrite(saved);
         cb(saved);
@@ -548,11 +538,10 @@ function refreshTokenViaBootstrap(seed,cb){
 }
 
 function fetchTokenFromGithub(cb){
-  if(typeof $task==='undefined'&&typeof $httpClient==='undefined'){cb(null);return;}
+  if(typeof $task==='undefined'||!$task.fetch){cb(null);return;}
   const url=TOKEN_JSON_URL+(TOKEN_JSON_URL.indexOf('?')>=0?'&':'?')+'t='+Date.now();
   step('github.try',url);
-  httpRequest({url:url,method:'GET',headers:{'Accept':'*/*','User-Agent':'One1'}},function(err,resp){
-    if(err){step('github.fail',String(err));cb(null);return;}
+  $task.fetch({url:url,method:'GET',headers:{'Accept':'*/*','User-Agent':'Quantumult%20X'}}).then(function(resp){
     try{
       let text=resp&&resp.body!=null?String(resp.body).trim():'';
       step('github.raw','st='+(resp.statusCode||'')+' len='+text.length+' head='+short(text,40));
@@ -585,7 +574,7 @@ function fetchTokenFromGithub(cb){
       };
       cb(saved);
     }catch(e){step('github.err',e.message||e);cb(null);}
-  });
+  }).catch(function(e){step('github.fail',String(e));cb(null);});
 }
 
 /**
@@ -605,6 +594,7 @@ function ensureSession(cb){
 
   step('session.refresh', cached ? ('need_refresh left=' + tokenLeftSec(cached.tokenOne) + 's') : 'no_cache');
 
+  // ② bootstrap 优先
   step('session.bootstrap', 'try v2.5/bootstrap');
   refreshTokenViaBootstrap(cached || FALLBACK_SESSION, function (boot) {
     if (boot && boot.tokenOne && !tokenExpiringSoon(boot.tokenOne)) {
@@ -612,12 +602,14 @@ function ensureSession(cb){
       cb(boot);
       return;
     }
+    // bootstrap 给了 token 但本地仍判过期时也先用
     if (boot && boot.tokenOne) {
       step('session.bootstrap', 'got token left=' + tokenLeftSec(boot.tokenOne) + 's (use anyway)');
       cb(boot);
       return;
     }
 
+    // ③ GitHub
     step('session.github', 'bootstrap fail, try github');
     fetchTokenFromGithub(function (saved) {
       if (saved && saved.tokenOne && !tokenExpiringSoon(saved.tokenOne)) {
@@ -627,6 +619,7 @@ function ensureSession(cb){
         return;
       }
 
+      // ④ FALLBACK
       if (FALLBACK_TOKEN_ONE && !tokenExpiringSoon(FALLBACK_TOKEN_ONE)) {
         const fb = Object.assign({}, FALLBACK_SESSION, {
           tokenAt: nowSec(),
@@ -638,6 +631,7 @@ function ensureSession(cb){
         return;
       }
 
+      // ⑤ 过期缓存兜底
       if (cached && cached.tokenOne) {
         step('session.stale', 'left=' + tokenLeftSec(cached.tokenOne) + 's');
         cb(cached);
@@ -650,7 +644,7 @@ function ensureSession(cb){
 
 function postOne(session,path,data,cb){
   if(!session||!session.tokenOne){cb(null,'no token');return;}
-  if(typeof $task==='undefined'&&typeof $httpClient==='undefined'){cb(null,'no http');return;}
+  if(typeof $task==='undefined'||!$task.fetch){cb(null,'no $task.fetch');return;}
   const base=String(session.baseUrl||ONE_DOMAINS[0]).replace(/\/+$/,'')+'/';
   const url=base+String(path).replace(/^\/+/,'');
   const ts=nowSec(),sign=buildSign(ts),query=formQuery(data);
@@ -661,8 +655,7 @@ function postOne(session,path,data,cb){
     platform:PLATFORM,ip:IP,'app-version':APP_VERSION,sign:sign,
   };
   step('post',path+' q='+query);
-  httpRequest({url:url,method:'POST',headers:headers,body:body},function(err,resp){
-    if(err){cb(null,String(err));return;}
+  $task.fetch({url:url,method:'POST',headers:headers,body:body}).then(resp=>{
     try{
       let text=resp&&resp.body!=null?String(resp.body).trim():'';
       step('post.raw','st='+(resp.statusCode||'')+' len='+text.length);
@@ -673,7 +666,7 @@ function postOne(session,path,data,cb){
       if(!(json.code==0||json.code==200||json.code=='0'||json.code=='200')){cb(null,'code='+json.code+' '+(json.message||json.msg||''));return;}
       cb(json.data!==undefined?json.data:json,null);
     }catch(e){cb(null,e.message||e);}
-  });
+  }).catch(e=>cb(null,String(e)));
 }
 
 function mediaUrl(session,path,type){
@@ -779,7 +772,7 @@ function markPurchased(node){
     'unlock','is_own','owned','is_owning','has_permission','can_play','can_watch',
     'is_free','free','vip_free','is_vip_free'
   ];
-  for (var bi=0;bi<buyKeys.length;bi++){ var k=buyKeys[bi];
+  for(const k of buyKeys){
     if(k in node){
       const v=node[k];
       if(typeof v==='boolean')node[k]=true;
@@ -789,7 +782,7 @@ function markPurchased(node){
     }
   }
   const statusKeys=['buy_status','purchase_status','pay_status','unlock_status','status_buy'];
-  for(var si=0;si<statusKeys.length;si++){var k=statusKeys[si];
+  for(const k of statusKeys){
     if(k in node){
       const v=node[k];
       if(typeof v==='number')node[k]=1;
@@ -798,7 +791,7 @@ function markPurchased(node){
     }
   }
   const offKeys=['need_buy','need_purchase','need_pay','is_lock','locked','is_locked','lock'];
-  for(var oi=0;oi<offKeys.length;oi++){var k=offKeys[oi];
+  for(const k of offKeys){
     if(k in node){
       const v=node[k];
       if(typeof v==='boolean')node[k]=false;
@@ -807,10 +800,10 @@ function markPurchased(node){
       else node[k]=0;
     }
   }
-  var _pk=['price','coin','coins','pay_coin','pay_price','amount'];for(var pi=0;pi<_pk.length;pi++){var k=_pk[pi];
+  for(const k of ['price','coin','coins','pay_coin','pay_price','amount']){
     if(k in node && (typeof node[k]==='number'||typeof node[k]==='string'))node[k]=0;
   }
-  var _nk=['data','list','info','articles','chapters','items','rows','records','result'];for(var ni=0;ni<_nk.length;ni++){var k=_nk[ni];
+  for(const k of ['data','list','info','articles','chapters','items','rows','records','result']){
     if(node[k]!=null)node[k]=markPurchased(node[k]);
   }
   return node;
@@ -895,12 +888,7 @@ function handleResponse(){
 }
 
 (function(){
-  try {
-    var isReq = typeof $request !== 'undefined' && typeof $response === 'undefined';
-    if (isReq) { $done({}); return; }
-    handleResponse();
-  } catch (e) {
-    try { console.log('[One1][FATAL] ' + (e && e.message ? e.message : e)); } catch (_) {}
-    try { $done({}); } catch (_) {}
-  }
+  const isReq=typeof $request!=='undefined'&&typeof $response==='undefined';
+  if(isReq){$done({});return;}
+  handleResponse();
 })();
