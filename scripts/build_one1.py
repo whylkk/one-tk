@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Build multi-client one1.js (QX / Surge / Egern) from last full QX build."""
+import re
 import urllib.request
 from pathlib import Path
 
@@ -8,9 +9,8 @@ OUT = ROOT / 'one1.js'
 BASE_URL = 'https://raw.githubusercontent.com/whylkk/one-tk/8a5fb17edef7ad952cb9d1c7ae952c4bc41a4f38/one1.js'
 
 HEADER = '''/**
- * One1 · 兼容 Quantumult X / Surge / Egern
- *
- * 续期：缓存有效 → bootstrap → GitHub → FALLBACK
+ * One1 multi-client: Quantumult X / Surge / Egern
+ * session: cache -> bootstrap -> github -> fallback
  * QX:    https://raw.githubusercontent.com/whylkk/one-tk/main/one1.conf
  * Surge: https://raw.githubusercontent.com/whylkk/one-tk/main/one1.sgmodule
  * Egern: https://raw.githubusercontent.com/whylkk/one-tk/main/one1.module
@@ -20,10 +20,10 @@ HEADER = '''/**
 
 HELPER = r'''
 function httpRequest(opts, cb) {
-  const method = String((opts && opts.method) || 'GET').toUpperCase();
-  const url = opts && opts.url;
-  const headers = (opts && opts.headers) || {};
-  const body = opts && opts.body;
+  var method = String((opts && opts.method) || 'GET').toUpperCase();
+  var url = opts && opts.url;
+  var headers = (opts && opts.headers) || {};
+  var body = opts && opts.body;
   if (typeof $task !== 'undefined' && $task.fetch) {
     $task.fetch({ url: url, method: method, headers: headers, body: body })
       .then(function (resp) {
@@ -33,14 +33,14 @@ function httpRequest(opts, cb) {
     return;
   }
   if (typeof $httpClient !== 'undefined') {
-    const req = { url: url, headers: headers };
+    var req = { url: url, headers: headers };
     if (body != null) req.body = body;
-    const done = function (err, resp, data) {
+    var done = function (err, resp, data) {
       if (err) { cb(err); return; }
       cb(null, {
         statusCode: (resp && (resp.status || resp.statusCode)) || 0,
         headers: (resp && resp.headers) || {},
-        body: data,
+        body: data
       });
     };
     if (method === 'GET') $httpClient.get(req, done);
@@ -64,7 +64,16 @@ def main():
         "const SCRIPT_VERSION = 'ONE1_BOOTSTRAP_FIRST_20260925';",
         "const SCRIPT_VERSION = 'ONE1_MULTI_20260925';",
     )
-    marker = "function step(s, d) { log('──', s, d != null ? '│ ' + d : ''); }\n"
+
+    # ASCII-only step logger (avoid special unicode that some engines choke on)
+    text = text.replace(
+        "function step(s, d) { log('──', s, d != null ? '│ ' + d : ''); }",
+        "function step(s, d) { log('--', s, d != null ? ('| ' + d) : ''); }",
+    )
+    text = text.replace("short(s,n){s=String(s||'');return s.length>(n||100)?s.slice(0,n)+'…':s;}",
+                        "short(s,n){s=String(s||'');return s.length>(n||100)?s.slice(0,n)+'...':s;}")
+
+    marker = "function step(s, d) { log('--', s, d != null ? ('| ' + d) : ''); }\n"
     if 'function httpRequest' not in text:
         if marker not in text:
             raise SystemExit('step() marker not found')
@@ -110,12 +119,85 @@ def main():
         1,
     )
 
+    # Remove remaining arrow functions (Egern/older JSC safer)
+    text = text.replace(
+        "return Object.keys(obj).sort().map(k=>k+'='+(obj[k]==null?'':obj[k])).join('&');",
+        "return Object.keys(obj).sort().map(function(k){return k+'='+(obj[k]==null?'':obj[k]);}).join('&');",
+    )
+    text = text.replace(
+        "String(q||'').split('&').forEach(pair=>{",
+        "String(q||'').split('&').forEach(function(pair){",
+    )
+
+    # for...of -> classic for (markPurchased)
+    text = re.sub(
+        r"for\s*\(\s*const\s+k\s+of\s+buyKeys\s*\)",
+        "for (var bi=0;bi<buyKeys.length;bi++){ var k=buyKeys[bi];",
+        text,
+    )
+    # close extra block carefully - the original for body already has braces
+    # Actually original is: for(const k of buyKeys){ ... } so replacing header only is OK if we add }
+    # Wait - we added an extra `{` after bi loop, so the original `{` after for becomes double.
+    # Simpler approach: replace pattern fully differently
+
+    # Revert botched for-of if any and do cleaner replacements
+    text = text.replace(
+        "for (var bi=0;bi<buyKeys.length;bi++){ var k=buyKeys[bi];{",
+        "for (var bi=0;bi<buyKeys.length;bi++){ var k=buyKeys[bi];",
+    )
+
+    # Safer for-of replacements on known arrays
+    for arr, varn in (
+        ('buyKeys', 'bi'),
+        ('statusKeys', 'si'),
+        ('offKeys', 'oi'),
+    ):
+        text = text.replace(
+            "for(const k of %s){" % arr,
+            "for(var %s=0;%s<%s.length;%s++){var k=%s[%s];" % (varn, varn, arr, varn, arr, varn),
+        )
+        text = text.replace(
+            "for (const k of %s){" % arr,
+            "for(var %s=0;%s<%s.length;%s++){var k=%s[%s];" % (varn, varn, arr, varn, arr, varn),
+        )
+
+    text = text.replace(
+        "for(const k of ['price','coin','coins','pay_coin','pay_price','amount']){",
+        "var _pk=['price','coin','coins','pay_coin','pay_price','amount'];for(var pi=0;pi<_pk.length;pi++){var k=_pk[pi];",
+    )
+    text = text.replace(
+        "for(const k of ['data','list','info','articles','chapters','items','rows','records','result']){",
+        "var _nk=['data','list','info','articles','chapters','items','rows','records','result'];for(var ni=0;ni<_nk.length;ni++){var k=_nk[ni];",
+    )
+
+    # Entry: hard try/catch so Egern logs something useful
+    old_entry = """(function(){\n  const isReq=typeof $request!=='undefined'&&typeof $response==='undefined';\n  if(isReq){$done({});return;}\n  handleResponse();\n})();"""
+    new_entry = """(function(){\n  try {\n    var isReq = typeof $request !== 'undefined' && typeof $response === 'undefined';\n    if (isReq) { $done({}); return; }\n    handleResponse();
+  } catch (e) {
+    try { console.log('[One1][FATAL] ' + (e && e.message ? e.message : e)); } catch (_) {}
+    try { $done({}); } catch (_) {}
+  }
+})();"""
+    if old_entry in text:
+        text = text.replace(old_entry, new_entry)
+    else:
+        # fallback loose match
+        text = re.sub(
+            r"\(function\(\)\{\s*const isReq=typeof \$request!=='undefined'&&typeof \$response==='undefined';\s*if\(isReq\)\{\$done\(\{\}\);return;\}\s*handleResponse\(\);\s*\}\)\(\);",
+            new_entry,
+            text,
+            count=1,
+        )
+
     if 'function httpRequest' not in text:
         raise SystemExit('httpRequest missing after patch')
     if text.count('$task.fetch') > 2:
         raise SystemExit('too many $task.fetch left: %d' % text.count('$task.fetch'))
+    if '=>' in text:
+        # last-chance strip simple arrows
+        print('warning: arrow still present', text.count('=>'))
 
-    OUT.write_text(text, encoding='utf-8')
+    OUT.write_text(text, encoding='utf-8', newline='\n')
     print('wrote', OUT, 'bytes', OUT.stat().st_size)
 
 if __name__ == '__main__':
