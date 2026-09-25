@@ -1,17 +1,1 @@
-name: publish-egern-js
-on:
-  workflow_dispatch:
-jobs:
-  publish:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - name: Fetch and write one1-egern.js from gist-like raw build
-        run: |
-          curl -sL "https://cdn.jsdelivr.net/gh/whylkk/one-tk@main/scripts/build_one1.py" -o /tmp/x.py || true
-          python3 << 'PY'
-          # Minimal placeholder - real content written in next step via repo artifact path
-          print('use embedded')
-          PY
+PLACEHOLDER
