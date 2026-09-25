@@ -1,0 +1,33 @@
+name: "One1"
+description: "One App · 列表已购 / 详情真链 / VIP / 去广告"
+author: "whylkk"
+homepage: "https://t.me/GieGie777"
+icon: "play.rectangle.fill"
+
+url_rewrites:
+  - match: ^https?://.*/v2\.5/ad/space
+    location: "https://reject.local/"
+    status_code: 404
+
+scriptings:
+  - http_response:
+      name: "One1"
+      match: ^https?://.*/v2\.5/(bootstrap|vip/download|article/detail|article/(day|discovery|search|list)|series/(list|chapters))
+      script_url: "https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js"
+      body_required: true
+      timeout: 30
+      max_size: 2097152
+      update_interval: 86400
+
+mitm:
+  hostnames:
+    includes:
+      - "api.*"
+      - "*.einhn4.com"
+      - "*.em1oifd0.com"
+      - "*.xqjby.com"
+      - "*.scycjz.com"
+      - "38.46.10.*"
+      - "202.95.22.*"
+      - "198.44.248.*"
+      - "122.10.20.249"
