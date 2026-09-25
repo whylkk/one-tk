@@ -1,7 +1,6 @@
 /**
- * One1 · 兼容 Quantumult X / Surge / Egern
- *
- * 续期：缓存有效 → bootstrap → GitHub → FALLBACK
+ * One1 multi-client: Quantumult X / Surge / Egern
+ * session: cache -> bootstrap -> github -> fallback
  * QX:    https://raw.githubusercontent.com/whylkk/one-tk/main/one1.conf
  * Surge: https://raw.githubusercontent.com/whylkk/one-tk/main/one1.sgmodule
  * Egern: https://raw.githubusercontent.com/whylkk/one-tk/main/one1.module
@@ -70,13 +69,13 @@ function log() {
     console.log('[One1][V] ' + parts.join(' '));
   } catch (_) {}
 }
-function step(s, d) { log('──', s, d != null ? '│ ' + d : ''); }
+function step(s, d) { log('--', s, d != null ? ('| ' + d) : ''); }
 
 function httpRequest(opts, cb) {
-  const method = String((opts && opts.method) || 'GET').toUpperCase();
-  const url = opts && opts.url;
-  const headers = (opts && opts.headers) || {};
-  const body = opts && opts.body;
+  var method = String((opts && opts.method) || 'GET').toUpperCase();
+  var url = opts && opts.url;
+  var headers = (opts && opts.headers) || {};
+  var body = opts && opts.body;
   if (typeof $task !== 'undefined' && $task.fetch) {
     $task.fetch({ url: url, method: method, headers: headers, body: body })
       .then(function (resp) {
@@ -86,14 +85,14 @@ function httpRequest(opts, cb) {
     return;
   }
   if (typeof $httpClient !== 'undefined') {
-    const req = { url: url, headers: headers };
+    var req = { url: url, headers: headers };
     if (body != null) req.body = body;
-    const done = function (err, resp, data) {
+    var done = function (err, resp, data) {
       if (err) { cb(err); return; }
       cb(null, {
         statusCode: (resp && (resp.status || resp.statusCode)) || 0,
         headers: (resp && resp.headers) || {},
-        body: data,
+        body: data
       });
     };
     if (method === 'GET') $httpClient.get(req, done);
@@ -398,12 +397,12 @@ function md5(str){
 function buildSign(ts){return md5(md5('0.0.0.0.3.'+ts+'.'+USER_KEY+'.'+UUID)+SIGN_SALT);}
 
 function nowSec(){return Math.floor(Date.now()/1000);}
-function short(s,n){s=String(s||'');return s.length>(n||100)?s.slice(0,n)+'…':s;}
-function formQuery(data){const obj=data||{};return Object.keys(obj).sort().map(k=>k+'='+(obj[k]==null?'':obj[k])).join('&');}
+function short(s,n){s=String(s||'');return s.length>(n||100)?s.slice(0,n)+'...':s;}
+function formQuery(data){const obj=data||{};return Object.keys(obj).sort().map(function(k){return k+'='+(obj[k]==null?'':obj[k]);}).join('&');}
 function joinUrl(base,path){if(!path)return'';if(/^https?:\/\//i.test(path))return path;if(!base)return path;return String(base).replace(/\/+$/,'')+'/'+String(path).replace(/^\/+/,'');}
 function isPlainJson(t){t=String(t||'').trim();return t.charAt(0)==='{'||t.charAt(0)==='[';}
 function looksLikeBase64(t){t=String(t||'').trim().replace(/^"|"$/g,'');return t.length>=16&&/^[A-Za-z0-9+/=]+$/.test(t);}
-function parseForm(q){const out={};String(q||'').split('&').forEach(pair=>{if(!pair)return;const i=pair.indexOf('=');const k=i>=0?decodeURIComponent(pair.slice(0,i)):decodeURIComponent(pair);const v=i>=0?decodeURIComponent(pair.slice(i+1)||''):'';if(k)out[k]=v;});return out;}
+function parseForm(q){const out={};String(q||'').split('&').forEach(function(pair){if(!pair)return;const i=pair.indexOf('=');const k=i>=0?decodeURIComponent(pair.slice(0,i)):decodeURIComponent(pair);const v=i>=0?decodeURIComponent(pair.slice(i+1)||''):'';if(k)out[k]=v;});return out;}
 function getPath(){try{const u=($request&&$request.url)||'';const m=u.match(/\/v2\.5\/[a-zA-Z0-9_\/.-]+/);return m?m[0]:'';}catch(_){return'';}}
 
 function storeWrite(obj){
@@ -788,7 +787,7 @@ function markPurchased(node){
     'unlock','is_own','owned','is_owning','has_permission','can_play','can_watch',
     'is_free','free','vip_free','is_vip_free'
   ];
-  for(const k of buyKeys){
+  for (var bi=0;bi<buyKeys.length;bi++){ var k=buyKeys[bi];
     if(k in node){
       const v=node[k];
       if(typeof v==='boolean')node[k]=true;
@@ -798,7 +797,7 @@ function markPurchased(node){
     }
   }
   const statusKeys=['buy_status','purchase_status','pay_status','unlock_status','status_buy'];
-  for(const k of statusKeys){
+  for(var si=0;si<statusKeys.length;si++){var k=statusKeys[si];
     if(k in node){
       const v=node[k];
       if(typeof v==='number')node[k]=1;
@@ -807,7 +806,7 @@ function markPurchased(node){
     }
   }
   const offKeys=['need_buy','need_purchase','need_pay','is_lock','locked','is_locked','lock'];
-  for(const k of offKeys){
+  for(var oi=0;oi<offKeys.length;oi++){var k=offKeys[oi];
     if(k in node){
       const v=node[k];
       if(typeof v==='boolean')node[k]=false;
@@ -816,10 +815,10 @@ function markPurchased(node){
       else node[k]=0;
     }
   }
-  for(const k of ['price','coin','coins','pay_coin','pay_price','amount']){
+  var _pk=['price','coin','coins','pay_coin','pay_price','amount'];for(var pi=0;pi<_pk.length;pi++){var k=_pk[pi];
     if(k in node && (typeof node[k]==='number'||typeof node[k]==='string'))node[k]=0;
   }
-  for(const k of ['data','list','info','articles','chapters','items','rows','records','result']){
+  var _nk=['data','list','info','articles','chapters','items','rows','records','result'];for(var ni=0;ni<_nk.length;ni++){var k=_nk[ni];
     if(node[k]!=null)node[k]=markPurchased(node[k]);
   }
   return node;
@@ -904,7 +903,12 @@ function handleResponse(){
 }
 
 (function(){
-  const isReq=typeof $request!=='undefined'&&typeof $response==='undefined';
-  if(isReq){$done({});return;}
-  handleResponse();
+  try {
+    var isReq = typeof $request !== 'undefined' && typeof $response === 'undefined';
+    if (isReq) { $done({}); return; }
+    handleResponse();
+  } catch (e) {
+    try { console.log('[One1][FATAL] ' + (e && e.message ? e.message : e)); } catch (_) {}
+    try { $done({}); } catch (_) {}
+  }
 })();
