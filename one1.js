@@ -20,7 +20,7 @@
  * hostname = api.*, *.einhn4.com, *.em1oifd0.com, *.xqjby.com, *.scycjz.com, 38.46.10.*, 202.95.22.*, 198.44.248.*, 122.10.20.249
  */
 
-const SCRIPT_VERSION = 'BOOTSTRAP_FIRST_20260925';
+const SCRIPT_VERSION = 'ONE1_MULTI_20260925c';
 const DEBUG = true;
 const STORE_KEY = 'one_core_token_v3';
 
@@ -70,6 +70,43 @@ const FALLBACK_SESSION = {
   },
   tokenAt: 0,
 };
+
+
+// ---- multi-client HTTP (QX $task / Surge&Egern $httpClient) ----
+function httpRequest(opts, cb) {
+  opts = opts || {};
+  var method = (opts.method || 'GET').toUpperCase();
+  var url = opts.url;
+  var headers = opts.headers || {};
+  var body = opts.body;
+  if (typeof $task !== 'undefined' && $task.fetch) {
+    $task.fetch({ url: url, method: method, headers: headers, body: body }).then(function (resp) {
+      cb(null, {
+        status: resp.statusCode || resp.status || 0,
+        body: resp.body != null ? String(resp.body) : '',
+        headers: resp.headers || {},
+      });
+    }, function (err) {
+      cb(err || 'fetch fail', null);
+    });
+    return;
+  }
+  if (typeof $httpClient !== 'undefined') {
+    var req = { url: url, headers: headers };
+    if (body != null) req.body = body;
+    var fn = method === 'POST' ? $httpClient.post : $httpClient.get;
+    fn.call($httpClient, req, function (err, resp, data) {
+      if (err) { cb(err, null); return; }
+      cb(null, {
+        status: (resp && (resp.status || resp.statusCode)) || 0,
+        body: data != null ? String(data) : '',
+        headers: (resp && resp.headers) || {},
+      });
+    });
+    return;
+  }
+  cb('no http client', null);
+}
 
 function log() {
   if (!DEBUG) return;
@@ -446,7 +483,6 @@ function tokenLeftSec(token){
 
 /* ========== bootstrap 续期（内置） ========== */
 function postBootstrap(baseUrl, oldToken, cb){
-  if(typeof $task==='undefined'||!$task.fetch){cb(null,'no $task.fetch');return;}
   const base=String(baseUrl||ONE_DOMAINS[0]).replace(/\/+$/,'')+'/';
   const url=base+'v2.5/bootstrap';
   const ts=nowSec(),sign=buildSign(ts);
@@ -459,10 +495,12 @@ function postBootstrap(baseUrl, oldToken, cb){
   };
   if(oldToken)headers.token=oldToken;
   step('bootstrap.try',url);
-  $task.fetch({url:url,method:'POST',headers:headers,body:body}).then(function(resp){
+  httpRequest({url:url,method:'POST',headers:headers,body:body}, function(err, resp){
+    if(err||!resp){cb(null,String(err||'no resp'));return;}
+
     try{
-      let text=resp&&resp.body!=null?String(resp.body).trim():'';
-      step('bootstrap.raw','st='+(resp.statusCode||'')+' len='+text.length);
+      let text=resp.body!=null?String(resp.body).trim():'';
+      step('bootstrap.raw','st='+((resp.status||resp.statusCode)||'')+' len='+text.length);
       if(!text){cb(null,'empty');return;}
       let json;
       if(isPlainJson(text))json=JSON.parse(text);
@@ -491,7 +529,8 @@ function postBootstrap(baseUrl, oldToken, cb){
       step('bootstrap.ok','left='+tokenLeftSec(tok)+'s len='+tok.length);
       cb(saved,null);
     }catch(e){cb(null,e.message||e);}
-  }).catch(function(e){cb(null,String(e));});
+  
+  });});
 }
 
 function refreshTokenViaBootstrap(seed,cb){
@@ -538,13 +577,14 @@ function refreshTokenViaBootstrap(seed,cb){
 }
 
 function fetchTokenFromGithub(cb){
-  if(typeof $task==='undefined'||!$task.fetch){cb(null);return;}
   const url=TOKEN_JSON_URL+(TOKEN_JSON_URL.indexOf('?')>=0?'&':'?')+'t='+Date.now();
   step('github.try',url);
-  $task.fetch({url:url,method:'GET',headers:{'Accept':'*/*','User-Agent':'Quantumult%20X'}}).then(function(resp){
+  httpRequest({url:url,method:'GET',headers:{'Accept':'*/*','User-Agent':'One1/1.0'}}, function(err, resp){
+    if(err||!resp){step('github.fail',String(err));cb(null);return;}
+
     try{
-      let text=resp&&resp.body!=null?String(resp.body).trim():'';
-      step('github.raw','st='+(resp.statusCode||'')+' len='+text.length+' head='+short(text,40));
+      let text=resp.body!=null?String(resp.body).trim():'';
+      step('github.raw','st='+((resp.status||resp.statusCode)||'')+' len='+text.length+' head='+short(text,40));
       if(!text){cb(null);return;}
       let obj=null;
       if(text.charAt(0)==='{'){
@@ -557,8 +597,8 @@ function fetchTokenFromGithub(cb){
       if(!obj||!obj.token_one){cb(null);return;}
       if(tokenExpiringSoon(obj.token_one)){
         step('github.expired','exp='+parseJwtExp(obj.token_one));
-        cb(null);
-        return;
+        if(!IGNORE_TOKEN_EXPIRE){cb(null);return;}
+        step('github.expired','use anyway (IGNORE_TOKEN_EXPIRE)');
       }
       const saved={
         tokenOne:String(obj.token_one),
@@ -574,7 +614,8 @@ function fetchTokenFromGithub(cb){
       };
       cb(saved);
     }catch(e){step('github.err',e.message||e);cb(null);}
-  }).catch(function(e){step('github.fail',String(e));cb(null);});
+  
+  });cb(null);});
 }
 
 /**
@@ -644,7 +685,6 @@ function ensureSession(cb){
 
 function postOne(session,path,data,cb){
   if(!session||!session.tokenOne){cb(null,'no token');return;}
-  if(typeof $task==='undefined'||!$task.fetch){cb(null,'no $task.fetch');return;}
   const base=String(session.baseUrl||ONE_DOMAINS[0]).replace(/\/+$/,'')+'/';
   const url=base+String(path).replace(/^\/+/,'');
   const ts=nowSec(),sign=buildSign(ts),query=formQuery(data);
@@ -655,10 +695,12 @@ function postOne(session,path,data,cb){
     platform:PLATFORM,ip:IP,'app-version':APP_VERSION,sign:sign,
   };
   step('post',path+' q='+query);
-  $task.fetch({url:url,method:'POST',headers:headers,body:body}).then(resp=>{
+  httpRequest({url:url,method:'POST',headers:headers,body:body}, function(err, resp){
+    if(err||!resp){cb(null,String(err||'no resp'));return;}
+
     try{
-      let text=resp&&resp.body!=null?String(resp.body).trim():'';
-      step('post.raw','st='+(resp.statusCode||'')+' len='+text.length);
+      let text=resp.body!=null?String(resp.body).trim():'';
+      step('post.raw','st='+((resp.status||resp.statusCode)||'')+' len='+text.length);
       if(!text){cb(null,'empty');return;}
       let json;
       if(isPlainJson(text))json=JSON.parse(text);
@@ -666,8 +708,8 @@ function postOne(session,path,data,cb){
       if(!(json.code==0||json.code==200||json.code=='0'||json.code=='200')){cb(null,'code='+json.code+' '+(json.message||json.msg||''));return;}
       cb(json.data!==undefined?json.data:json,null);
     }catch(e){cb(null,e.message||e);}
-  }).catch(e=>cb(null,String(e)));
-}
+  
+  });}
 
 function mediaUrl(session,path,type){
   if(!path)return'';
