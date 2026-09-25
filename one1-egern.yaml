@@ -1,64 +1,33 @@
 name: "One1"
-description: "One App: bootstrap VIP + list purchased + vip download + ad block (Egern native API)"
+description: "One App VIP / purchased / adblock for Egern native API"
 author: "whylkk"
 homepage: "https://github.com/whylkk/one-tk"
 icon: "play.rectangle.fill"
 
 url_rewrites:
-  - match: "^https://.*/v2\\.5/ad/space"
+  - match: ^https?://.*/v2\.5/ad/space
     location: "https://reject.local/"
     status_code: 404
 
 scriptings:
   - http_response:
-      name: "One1-Bootstrap"
-      match: "^https?://[^/]+/v2\\.5/bootstrap"
-      script_url: "https://cdn.jsdelivr.net/gh/whylkk/one-tk@57096010189e5d871352c53455a37a05bac5803c/one1-egern.js"
+      name: "One1"
+      match: ^https?://.*/v2\.5/
+      script_url: "https://cdn.jsdelivr.net/gh/whylkk/one-tk@main/one1-egern.js"
       body_required: true
       timeout: 30
       max_size: 2097152
-      update_interval: 3600
-  - http_response:
-      name: "One1-VipDL"
-      match: "^https?://[^/]+/v2\\.5/vip/download"
-      script_url: "https://cdn.jsdelivr.net/gh/whylkk/one-tk@57096010189e5d871352c53455a37a05bac5803c/one1-egern.js"
-      body_required: true
-      timeout: 30
-      max_size: 2097152
-      update_interval: 3600
-  - http_response:
-      name: "One1-Detail"
-      match: "^https?://[^/]+/v2\\.5/article/detail"
-      script_url: "https://cdn.jsdelivr.net/gh/whylkk/one-tk@57096010189e5d871352c53455a37a05bac5803c/one1-egern.js"
-      body_required: true
-      timeout: 30
-      max_size: 2097152
-      update_interval: 3600
-  - http_response:
-      name: "One1-List"
-      match: "^https?://[^/]+/v2\\.5/article/(day|discovery|search|list)"
-      script_url: "https://cdn.jsdelivr.net/gh/whylkk/one-tk@57096010189e5d871352c53455a37a05bac5803c/one1-egern.js"
-      body_required: true
-      timeout: 30
-      max_size: 2097152
-      update_interval: 3600
-  - http_response:
-      name: "One1-Series"
-      match: "^https?://[^/]+/v2\\.5/series/(list|chapters)"
-      script_url: "https://cdn.jsdelivr.net/gh/whylkk/one-tk@57096010189e5d871352c53455a37a05bac5803c/one1-egern.js"
-      body_required: true
-      timeout: 30
-      max_size: 2097152
-      update_interval: 3600
+      update_interval: 0
 
 mitm:
   hostnames:
-    - "api.*"
-    - "*.einhn4.com"
-    - "*.em1oifd0.com"
-    - "*.xqjby.com"
-    - "*.scycjz.com"
-    - "38.46.10.*"
-    - "202.95.22.*"
-    - "198.44.248.*"
-    - "122.10.20.249"
+    includes:
+      - "api.*"
+      - "*.einhn4.com"
+      - "*.em1oifd0.com"
+      - "*.xqjby.com"
+      - "*.scycjz.com"
+      - "38.46.10.*"
+      - "202.95.22.*"
+      - "198.44.248.*"
+      - "122.10.20.249"

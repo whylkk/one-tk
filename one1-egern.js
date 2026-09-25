@@ -1,10 +1,8 @@
 /**
- * One1 Egern native (lite)
- * module: https://raw.githubusercontent.com/whylkk/one-tk/main/one1-egern.yaml
- * Handles plain JSON: bootstrap VIP, list purchased, vip/download
- * Encrypted body is left unchanged (log: skip encrypted body)
+ * One1 Egern native
+ * Always logs so you can confirm the script is triggered.
  */
-const VERSION = 'ONE1_EGERN_LITE_20260925';
+const VERSION = 'ONE1_EGERN_LITE_20260925b';
 
 function log() {
   try {
@@ -16,7 +14,7 @@ function log() {
 
 function getPath(url) {
   var m = String(url || '').match(/\/v2\.5\/[a-zA-Z0-9_\/.]+/);
-  return m ? m[0] : '';
+  return m ? m[0] : String(url || '').slice(0, 80);
 }
 
 function isPlainJson(t) {
@@ -87,28 +85,39 @@ function isListPath(path) {
 }
 
 export default async function (ctx) {
+  var url = '';
   try {
-    var url = (ctx.request && ctx.request.url) || '';
-    var path = getPath(url);
-    log('VER', VERSION, 'path', path);
+    url = (ctx.request && ctx.request.url) || '';
+  } catch (e) {}
+  var path = getPath(url);
+  log('HIT', VERSION, path);
+
+  try {
     var text = '';
-    try { text = await ctx.response.text(); } catch (e) {}
+    try { text = await ctx.response.text(); } catch (e) { log('body.read.err', e && e.message); }
     text = String(text || '').trim();
+    log('body.len', text.length, 'plain', isPlainJson(text));
+
     if (!text) return;
     if (!isPlainJson(text)) {
-      log('skip encrypted body');
+      log('skip encrypted');
       return;
     }
+
     var json = JSON.parse(text);
     if (path.indexOf('/bootstrap') >= 0) {
+      log('action bootstrap');
       return { body: JSON.stringify(modifyBootstrap(json)) };
     }
     if (path.indexOf('/vip/download') >= 0) {
+      log('action vipdl');
       return { body: JSON.stringify(modifyVipDownload(json)) };
     }
     if (isListPath(path) || path.indexOf('/article/detail') >= 0) {
+      log('action mark');
       return { body: JSON.stringify(markPurchased(json)) };
     }
+    log('action none');
   } catch (e) {
     log('FATAL', e && e.message ? e.message : e);
   }
