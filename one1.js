@@ -1,33 +1,15 @@
-/******************************
-
-脚本功能：One App · 列表已购 / 详情真链 / VIP / 去广告
-下载地址：App Store · One
-脚本作者：whylkk
-更新时间：2026+
-电报频道：https://t.me/GieGie777
-问题反馈：
+/*
+ *
+ *
 使用声明：⚠️此脚本仅供学习与交流，请在下载使用24小时内删除！请勿在中国大陆转载与贩卖！⚠️⚠️⚠️
-
 *******************************
-
 [rewrite_local]
-# > One · bootstrap VIP
-^https?://[^/]+/v2\.5/bootstrap url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
-# > One · vip download
-^https?://[^/]+/v2\.5/vip/download url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
-# > One · article detail 真链
-^https?://[^/]+/v2\.5/article/detail url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
-# > One · 列表已购
-^https?://[^/]+/v2\.5/article/(day|discovery|search|list) url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
-# > One · 系列已购
-^https?://[^/]+/v2\.5/series/(list|chapters) url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
-# > One · 去广告
-^https://.*/v2\.5/ad/space url reject
-
+https:\/\/.*\/v2.5\/ad\/space url reject
+^https?://[^/]+/v2\.5/(bootstrap|vip/download|article/detail|article/(day|discovery|search|list)|series/(list|chapters)|actor/getActorArticles) url script-response-body one_vip_senplayer_v20260815_buy_real.js
 [mitm]
-hostname = api.*, *.einhn4.com, *.em1oifd0.com, *.xqjby.com, *.scycjz.com, 38.46.10.*, 202.95.22.*, 198.44.248.*, 122.10.20.249
-
-*******************************
+hostname = api.*, *.einhn4.com, *.em1oifd0.com, *.xqjby.com, *.scycjz.com, 38.46.10.*, 202.95.22.*, 198.44.248.*, 122.10.20.249,0325api.a9a2bc4.com, 0325api.vf5x3hv.com, 0325api.4c86d03.com, 0325api.b675211.com, 0325api.apubis.com,0325api*com
+*
+*
 */
 
 const SCRIPT_VERSION = 'ONE1_20260925';
