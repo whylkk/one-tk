@@ -1,0 +1,88 @@
+name: build-one1-multi
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build multi-client one1.js
+        run: python3 scripts/build_one1.py
+
+      - name: Point configs to main/one1.js
+        run: |
+          cat > one1.conf << 'EOF'
+          # One1 · Quantumult X 远程重写（多端兼容脚本）
+          # https://raw.githubusercontent.com/whylkk/one-tk/main/one1.conf
+
+          hostname = api.*, *.einhn4.com, *.em1oifd0.com, *.xqjby.com, *.scycjz.com, 38.46.10.*, 202.95.22.*, 198.44.248.*, 122.10.20.249
+
+          ^https://.*/v2\.5/ad/space url reject
+
+          ^https?://[^/]+/v2\.5/bootstrap url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
+          ^https?://[^/]+/v2\.5/vip/download url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
+          ^https?://[^/]+/v2\.5/article/detail url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
+          ^https?://[^/]+/v2\.5/article/(day|discovery|search|list) url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
+          ^https?://[^/]+/v2\.5/series/(list|chapters) url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
+          EOF
+          # fix leading spaces from heredoc
+          sed -i 's/^          //' one1.conf
+
+          cat > one1.sgmodule << 'EOF'
+          #!name=One1
+          #!desc=One App multi-client (Surge)
+          #!category=Media
+          #!author=whylkk
+
+          [MITM]
+          hostname = %APPEND% api.*, *.einhn4.com, *.em1oifd0.com, *.xqjby.com, *.scycjz.com, 38.46.10.*, 202.95.22.*, 198.44.248.*, 122.10.20.249
+
+          [URL Rewrite]
+          ^https://.*/v2\.5/ad/space - reject
+
+          [Script]
+          http-response ^https?://[^/]+/v2\.5/bootstrap requires-body=1, max-size=0, timeout=30, script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, script-update-interval=0, tag=One1-Bootstrap
+          http-response ^https?://[^/]+/v2\.5/vip/download requires-body=1, max-size=0, timeout=30, script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, script-update-interval=0, tag=One1-VipDL
+          http-response ^https?://[^/]+/v2\.5/article/detail requires-body=1, max-size=0, timeout=30, script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, script-update-interval=0, tag=One1-Detail
+          http-response ^https?://[^/]+/v2\.5/article/(day|discovery|search|list) requires-body=1, max-size=0, timeout=30, script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, script-update-interval=0, tag=One1-List
+          http-response ^https?://[^/]+/v2\.5/series/(list|chapters) requires-body=1, max-size=0, timeout=30, script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, script-update-interval=0, tag=One1-Series
+          EOF
+          sed -i 's/^          //' one1.sgmodule
+
+          cat > one1.module << 'EOF'
+          #!name=One1
+          #!desc=One App multi-client (Egern)
+          #!category=Media
+          #!author=whylkk
+
+          [MitM]
+          hostname = api.*, *.einhn4.com, *.em1oifd0.com, *.xqjby.com, *.scycjz.com, 38.46.10.*, 202.95.22.*, 198.44.248.*, 122.10.20.249
+
+          [URL Rewrite]
+          ^https://.*/v2\.5/ad/space reject
+
+          [Script]
+          http-response ^https?://[^/]+/v2\.5/bootstrap script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-Bootstrap
+          http-response ^https?://[^/]+/v2\.5/vip/download script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-VipDL
+          http-response ^https?://[^/]+/v2\.5/article/detail script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-Detail
+          http-response ^https?://[^/]+/v2\.5/article/(day|discovery|search|list) script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-List
+          http-response ^https?://[^/]+/v2\.5/series/(list|chapters) script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-Series
+          EOF
+          sed -i 's/^          //' one1.module
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add one1.js one1.conf one1.sgmodule one1.module
+          if git diff --staged --quiet; then
+            echo "no changes"
+          else
+            git commit -m "build: one1 multi-client (QX/Surge/Egern httpRequest)"
+            git push
+          fi
