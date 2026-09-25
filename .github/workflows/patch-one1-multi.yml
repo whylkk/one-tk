@@ -1,0 +1,36 @@
+name: patch-one1-multi
+
+on:
+  workflow_dispatch:
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch multi-client HTTP
+        run: python3 scripts/patch_multi_http.py
+
+      - name: Verify
+        run: |
+          grep -q "ONE1_MULTI_20260925c" one1.js
+          grep -q "function httpRequest" one1.js
+          grep -q "function ensureSession" one1.js
+          grep -q "\$httpClient" one1.js
+          head -5 one1.js
+          wc -c one1.js
+
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add one1.js
+          if git diff --staged --quiet; then
+            echo no changes
+          else
+            git commit -m "fix: one1.js multi-client HTTP for Egern/Surge/QX"
+            git push
+          fi
