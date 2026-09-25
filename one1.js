@@ -1,3 +1,4 @@
+
 /*
  *
  *
@@ -5,27 +6,23 @@
 软件版本：
 下载地址：
 脚本作者：whylkk
-更新时间：2026+
+更新时间：+20260925
 电报频道：https://t.me/GieGie777
 问题反馈：
-使用声明：⚠️此脚本仅供学习与交流，请在下载使用24小时内删除！请勿在中国大陆转载与贩卖！⚠️⚠️⚠️
+使用声明：此脚本仅供学习与交流，请在下载使用24小时内删除！请勿在中国大陆转载与贩卖！
 *******************************
 [rewrite_local]
+
 # > One bootstrap / vip / detail / list / series
 ^https?:\/\/[^\/]+\/v2\.5\/(bootstrap|vip\/download|article\/detail|article\/(day|discovery|search|list)|series\/(list|chapters)) url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
 # > One 去广告
 ^https?:\/\/.*\/v2\.5\/ad\/space url reject
-
 [mitm]
 hostname = api.*, *.einhn4.com, *.em1oifd0.com, *.xqjby.com, *.scycjz.com, 38.46.10.*, 202.95.22.*, 198.44.248.*, 122.10.20.249
 
 *
 *
 */
-
-
-
-
 
 
 
