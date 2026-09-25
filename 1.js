@@ -1,6 +1,6 @@
 [rewrite_local]
 https:\/\/.*\/v2.5\/ad\/space url reject
-^https?://[^/]+/v2\.5/(bootstrap|vip/download|article/detail|article/(day|discovery|search|list)|series/(list|chapters)|actor/getActorArticles) url script-response-body one_vip_senplayer_v20260815_buy_real.js
+^https?://[^/]+/v2\.5/(bootstrap|vip/download|article/detail|article/(day|discovery|search|list)|series/(list|chapters)|actor/getActorArticles) url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/refs/heads/main/1.js
 [mitm]
 hostname = api.*, *.einhn4.com, *.em1oifd0.com, *.xqjby.com, *.scycjz.com, 38.46.10.*, 202.95.22.*, 198.44.248.*, 122.10.20.249,0325api.a9a2bc4.com, 0325api.vf5x3hv.com, 0325api.4c86d03.com, 0325api.b675211.com, 0325api.apubis.com,0325api*com
 /**
