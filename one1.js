@@ -1,16 +1,34 @@
 /*
  *
  *
+脚本功能：One App · 列表已购 / 详情真链 / VIP / 去广告
+软件版本：
+下载地址：
+脚本作者：whylkk
+更新时间：2026+
+电报频道：https://t.me/GieGie777
+问题反馈：
 使用声明：⚠️此脚本仅供学习与交流，请在下载使用24小时内删除！请勿在中国大陆转载与贩卖！⚠️⚠️⚠️
 *******************************
 [rewrite_local]
-https:\/\/.*\/v2.5\/ad\/space url reject
-^https?://[^/]+/v2\.5/(bootstrap|vip/download|article/detail|article/(day|discovery|search|list)|series/(list|chapters)|actor/getActorArticles) url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
+# > One bootstrap / vip / detail / list / series
+^https?:\/\/[^\/]+\/v2\.5\/(bootstrap|vip\/download|article\/detail|article\/(day|discovery|search|list)|series\/(list|chapters)) url script-response-body https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js
+# > One 去广告
+^https?:\/\/.*\/v2\.5\/ad\/space url reject
+
 [mitm]
-hostname = api.*, *.einhn4.com, *.em1oifd0.com, *.xqjby.com, *.scycjz.com, 38.46.10.*, 202.95.22.*, 198.44.248.*, 122.10.20.249,0325api.a9a2bc4.com, 0325api.vf5x3hv.com, 0325api.4c86d03.com, 0325api.b675211.com, 0325api.apubis.com,0325api*com
+hostname = api.*, *.einhn4.com, *.em1oifd0.com, *.xqjby.com, *.scycjz.com, 38.46.10.*, 202.95.22.*, 198.44.248.*, 122.10.20.249
+
 *
 *
 */
+
+
+
+
+
+
+
 
 const SCRIPT_VERSION = 'ONE1_20260925';
 const DEBUG = true;
