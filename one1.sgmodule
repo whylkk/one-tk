@@ -1,0 +1,17 @@
+#!name=One1
+#!desc=One App：bootstrap 续期 + 已购列表 + 真链详情 + 去广告（兼容 Surge）
+#!category=Media
+#!author=whylkk
+
+[MITM]
+hostname = %APPEND% api.*, *.einhn4.com, *.em1oifd0.com, *.xqjby.com, *.scycjz.com, 38.46.10.*, 202.95.22.*, 198.44.248.*, 122.10.20.249
+
+[URL Rewrite]
+^https://.*/v2\.5/ad/space - reject
+
+[Script]
+http-response ^https?://[^/]+/v2\.5/bootstrap requires-body=1, max-size=0, timeout=30, script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, script-update-interval=0, tag=One1-Bootstrap
+http-response ^https?://[^/]+/v2\.5/vip/download requires-body=1, max-size=0, timeout=30, script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, script-update-interval=0, tag=One1-VipDL
+http-response ^https?://[^/]+/v2\.5/article/detail requires-body=1, max-size=0, timeout=30, script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, script-update-interval=0, tag=One1-Detail
+http-response ^https?://[^/]+/v2\.5/article/(day|discovery|search|list) requires-body=1, max-size=0, timeout=30, script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, script-update-interval=0, tag=One1-List
+http-response ^https?://[^/]+/v2\.5/series/(list|chapters) requires-body=1, max-size=0, timeout=30, script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, script-update-interval=0, tag=One1-Series

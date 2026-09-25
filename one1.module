@@ -1,0 +1,17 @@
+#!name=One1
+#!desc=One App：bootstrap 续期 + 已购列表 + 真链详情 + 去广告（兼容 Egern）
+#!category=Media
+#!author=whylkk
+
+[MitM]
+hostname = api.*, *.einhn4.com, *.em1oifd0.com, *.xqjby.com, *.scycjz.com, 38.46.10.*, 202.95.22.*, 198.44.248.*, 122.10.20.249
+
+[URL Rewrite]
+^https://.*/v2\.5/ad/space reject
+
+[Script]
+http-response ^https?://[^/]+/v2\.5/bootstrap script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-Bootstrap
+http-response ^https?://[^/]+/v2\.5/vip/download script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-VipDL
+http-response ^https?://[^/]+/v2\.5/article/detail script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-Detail
+http-response ^https?://[^/]+/v2\.5/article/(day|discovery|search|list) script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-List
+http-response ^https?://[^/]+/v2\.5/series/(list|chapters) script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-Series
