@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'scripts/egern_parts/**'
+      - 'scripts/egern_b64/**'
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -11,14 +11,15 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Assemble one1-egern.js
+      - name: Decode one1-egern.js
         run: |
-          cat scripts/egern_parts/part0.jsfrag scripts/egern_parts/part1.jsfrag scripts/egern_parts/part2.jsfrag scripts/egern_parts/part3.jsfrag > one1-egern.js
+          cat scripts/egern_b64/p0.txt scripts/egern_b64/p1.txt scripts/egern_b64/p2.txt scripts/egern_b64/p3.txt | base64 -d > one1-egern.js
           wc -c one1-egern.js
           grep -q 'export default async function' one1-egern.js
+          head -5 one1-egern.js
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add one1-egern.js
-          git diff --staged --quiet || (git commit -m "feat: assemble one1-egern.js" && git push)
+          git diff --staged --quiet || (git commit -m "feat: one1-egern.js native Egern script" && git push)
