@@ -1,5 +1,5 @@
 #!name=One1
-#!desc=One App multi-client (Egern)
+#!desc=One App multi-client (Egern) - bootstrap/list/detail/adblock
 #!category=Media
 #!author=whylkk
 
@@ -10,8 +10,8 @@ hostname = api.*, *.einhn4.com, *.em1oifd0.com, *.xqjby.com, *.scycjz.com, 38.46
 ^https://.*/v2\.5/ad/space reject
 
 [Script]
-http-response ^https?://[^/]+/v2\.5/bootstrap script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-Bootstrap
-http-response ^https?://[^/]+/v2\.5/vip/download script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-VipDL
-http-response ^https?://[^/]+/v2\.5/article/detail script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-Detail
-http-response ^https?://[^/]+/v2\.5/article/(day|discovery|search|list) script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-List
-http-response ^https?://[^/]+/v2\.5/series/(list|chapters) script-path=https://raw.githubusercontent.com/whylkk/one-tk/main/one1.js, requires-body=true, timeout=30, tag=One1-Series
+http-response ^https?://[^/]+/v2\.5/bootstrap script-path=https://cdn.jsdelivr.net/gh/whylkk/one-tk@0679e78c8fe53a3a76e88824d3f5d8cae320b4f8/one1.js, requires-body=1, timeout=30, tag=One1-Bootstrap
+http-response ^https?://[^/]+/v2\.5/vip/download script-path=https://cdn.jsdelivr.net/gh/whylkk/one-tk@0679e78c8fe53a3a76e88824d3f5d8cae320b4f8/one1.js, requires-body=1, timeout=30, tag=One1-VipDL
+http-response ^https?://[^/]+/v2\.5/article/detail script-path=https://cdn.jsdelivr.net/gh/whylkk/one-tk@0679e78c8fe53a3a76e88824d3f5d8cae320b4f8/one1.js, requires-body=1, timeout=30, tag=One1-Detail
+http-response ^https?://[^/]+/v2\.5/article/(day|discovery|search|list) script-path=https://cdn.jsdelivr.net/gh/whylkk/one-tk@0679e78c8fe53a3a76e88824d3f5d8cae320b4f8/one1.js, requires-body=1, timeout=30, tag=One1-List
+http-response ^https?://[^/]+/v2\.5/series/(list|chapters) script-path=https://cdn.jsdelivr.net/gh/whylkk/one-tk@0679e78c8fe53a3a76e88824d3f5d8cae320b4f8/one1.js, requires-body=1, timeout=30, tag=One1-Series
