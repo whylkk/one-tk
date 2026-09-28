@@ -34,21 +34,16 @@ const ENV = (() => {
   return "Unknown";
 })();
 
+const __origDone = (typeof $done === "function") ? $done : function () {};
+
+
 /** 统一结束 */
 function platformDone(result) {
-  result = result || {};
-  if (ENV === "Quantumult X") {
-    const out = {};
-    if (result.status != null) {
-      out.status = typeof result.status === "number"
-        ? ("HTTP/1.1 " + result.status + " OK") : result.status;
-    }
-    if (result.headers) out.headers = result.headers;
-    if (result.body != null) out.body = result.body;
-    if (result.bodyBytes != null) out.bodyBytes = result.bodyBytes;
-    platformDone(out);
-  } else {
-    platformDone(result);
+  // 直接交给各客户端原生 $done（已在启动时保存为 __origDone）
+  if (typeof __origDone === "function") {
+    __origDone(result || {});
+  } else if (typeof $done === "function") {
+    $done(result || {});
   }
 }
 
@@ -121,19 +116,12 @@ function platformNotify(title, subtitle, body, openUrl) {
   console.log("[notify] " + title + " | " + subtitle + " | " + body);
 }
 
-/* 让后续代码里的 $task.fetch / $done / $notify 走兼容层 */
-const __origDone = typeof $done === "function" ? $done : function () {};
+/* 非 QX 环境补上 $task.fetch */
 if (typeof globalThis.$task === "undefined") {
   globalThis.$task = {
     fetch: function (opts) {
       return platformFetch(opts);
     },
-  };
-} else {
-  const _fetch = $task.fetch.bind($task);
-  $task.fetch = function (opts) {
-    // 仍走原 QX，但也可统一
-    return _fetch(opts);
   };
 }
 
