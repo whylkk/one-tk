@@ -1,5 +1,5 @@
 /**
- * One · 圈叉脚本（bootstrap 续期优先 + GitHub 兜底）
+ * One · 圈叉脚本（bootstrap 续期优先 + GitHub 兜底 · 多端兼容）
  *
  * 续期顺序：
  *   ① 缓存有效 → 直接用
@@ -16,11 +16,128 @@
  * ^https?://[^/]+/v2\.5/article/(day|discovery|search|list) url script-response-body one_vip_senplayer.js
  * ^https?://[^/]+/v2\.5/series/(list|chapters) url script-response-body one_vip_senplayer.js
  *
+ * 支持：Quantumult X / Surge / Loon / Stash / Shadowrocket
  * [mitm]
  * hostname = api.*, *.einhn4.com, *.em1oifd0.com, *.xqjby.com, *.scycjz.com, 38.46.10.*, 202.95.22.*, 198.44.248.*, 122.10.20.249
  */
 
-const SCRIPT_VERSION = 'ONE1_MULTI_20260925c';
+
+/* ========== 多端兼容层（Surge / Loon / QX / Stash / Shadowrocket） ========== */
+const ENV = (() => {
+  const has = (k) => k in globalThis;
+  if (has("$task")) return "Quantumult X";
+  if (has("$loon")) return "Loon";
+  if (has("$rocket")) return "Shadowrocket";
+  if (has("Egern")) return "Egern";
+  if (globalThis.$environment && globalThis.$environment["surge-version"]) return "Surge";
+  if (globalThis.$environment && globalThis.$environment["stash-version"]) return "Stash";
+  return "Unknown";
+})();
+
+/** 统一结束 */
+function platformDone(result) {
+  result = result || {};
+  if (ENV === "Quantumult X") {
+    const out = {};
+    if (result.status != null) {
+      out.status = typeof result.status === "number"
+        ? ("HTTP/1.1 " + result.status + " OK") : result.status;
+    }
+    if (result.headers) out.headers = result.headers;
+    if (result.body != null) out.body = result.body;
+    if (result.bodyBytes != null) out.bodyBytes = result.bodyBytes;
+    platformDone(out);
+  } else {
+    platformDone(result);
+  }
+}
+
+/** 统一 HTTP：返回 Promise<{statusCode, body, headers, ok}> */
+function platformFetch(opts) {
+  const method = (opts.method || "GET").toUpperCase();
+  let timeout = opts.timeout != null ? opts.timeout : 15000;
+  // QX 用毫秒；Surge 系常用秒
+  if (ENV === "Quantumult X") {
+    return $task.fetch({
+      url: opts.url,
+      method: method,
+      headers: opts.headers || {},
+      body: opts.body,
+      timeout: timeout > 500 ? timeout : timeout * 1000,
+    }).then(function (r) {
+      return {
+        statusCode: r.statusCode,
+        body: r.body,
+        bodyBytes: r.bodyBytes,
+        headers: r.headers,
+        ok: /^2\d\d$/.test(String(r.statusCode)),
+      };
+    });
+  }
+  return new Promise(function (resolve, reject) {
+    const client = globalThis.$httpClient;
+    if (!client) return reject(new Error("无 $httpClient"));
+    const m = method.toLowerCase();
+    const req = {
+      url: opts.url,
+      headers: opts.headers || {},
+      body: opts.body,
+      timeout: timeout > 500 ? Math.round(timeout / 1000) : timeout,
+    };
+    client[m](req, function (err, resp, body) {
+      if (err) return reject(err);
+      resolve({
+        statusCode: resp.status,
+        body: body,
+        bodyBytes: body,
+        headers: resp.headers,
+        ok: /^2\d\d$/.test(String(resp.status)),
+      });
+    });
+  });
+}
+
+/** 统一通知 */
+function platformNotify(title, subtitle, body, openUrl) {
+  title = title || "One";
+  subtitle = subtitle || "";
+  body = body || "";
+  try {
+    if (typeof $notify === "function") {
+      $notify(title, subtitle, body, openUrl ? { "open-url": openUrl } : {});
+      return;
+    }
+  } catch (_) {}
+  try {
+    if (typeof $notification !== "undefined" && $notification.post) {
+      if (ENV === "Surge" || ENV === "Stash") {
+        $notification.post(title, subtitle, body, openUrl ? { url: openUrl } : {});
+      } else {
+        $notification.post(title, subtitle, body, openUrl || "");
+      }
+      return;
+    }
+  } catch (_) {}
+  console.log("[notify] " + title + " | " + subtitle + " | " + body);
+}
+
+/* 让后续代码里的 $task.fetch / $done / $notify 走兼容层 */
+const __origDone = typeof $done === "function" ? $done : function () {};
+if (typeof globalThis.$task === "undefined") {
+  globalThis.$task = {
+    fetch: function (opts) {
+      return platformFetch(opts);
+    },
+  };
+} else {
+  const _fetch = $task.fetch.bind($task);
+  $task.fetch = function (opts) {
+    // 仍走原 QX，但也可统一
+    return _fetch(opts);
+  };
+}
+
+const SCRIPT_VERSION = 'BOOTSTRAP_FIRST_20260925';
 const DEBUG = true;
 const STORE_KEY = 'one_core_token_v3';
 
@@ -70,43 +187,6 @@ const FALLBACK_SESSION = {
   },
   tokenAt: 0,
 };
-
-
-// ---- multi-client HTTP (QX $task / Surge&Egern $httpClient) ----
-function httpRequest(opts, cb) {
-  opts = opts || {};
-  var method = (opts.method || 'GET').toUpperCase();
-  var url = opts.url;
-  var headers = opts.headers || {};
-  var body = opts.body;
-  if (typeof $task !== 'undefined' && $task.fetch) {
-    $task.fetch({ url: url, method: method, headers: headers, body: body }).then(function (resp) {
-      cb(null, {
-        status: resp.statusCode || resp.status || 0,
-        body: resp.body != null ? String(resp.body) : '',
-        headers: resp.headers || {},
-      });
-    }, function (err) {
-      cb(err || 'fetch fail', null);
-    });
-    return;
-  }
-  if (typeof $httpClient !== 'undefined') {
-    var req = { url: url, headers: headers };
-    if (body != null) req.body = body;
-    var fn = method === 'POST' ? $httpClient.post : $httpClient.get;
-    fn.call($httpClient, req, function (err, resp, data) {
-      if (err) { cb(err, null); return; }
-      cb(null, {
-        status: (resp && (resp.status || resp.statusCode)) || 0,
-        body: data != null ? String(data) : '',
-        headers: (resp && resp.headers) || {},
-      });
-    });
-    return;
-  }
-  cb('no http client', null);
-}
 
 function log() {
   if (!DEBUG) return;
@@ -483,6 +563,7 @@ function tokenLeftSec(token){
 
 /* ========== bootstrap 续期（内置） ========== */
 function postBootstrap(baseUrl, oldToken, cb){
+  if(typeof $task==='undefined'||!$task.fetch){cb(null,'no $task.fetch');return;}
   const base=String(baseUrl||ONE_DOMAINS[0]).replace(/\/+$/,'')+'/';
   const url=base+'v2.5/bootstrap';
   const ts=nowSec(),sign=buildSign(ts);
@@ -495,12 +576,10 @@ function postBootstrap(baseUrl, oldToken, cb){
   };
   if(oldToken)headers.token=oldToken;
   step('bootstrap.try',url);
-  httpRequest({url:url,method:'POST',headers:headers,body:body}, function(err, resp){
-    if(err||!resp){cb(null,String(err||'no resp'));return;}
-
+  $task.fetch({url:url,method:'POST',headers:headers,body:body}).then(function(resp){
     try{
-      let text=resp.body!=null?String(resp.body).trim():'';
-      step('bootstrap.raw','st='+((resp.status||resp.statusCode)||'')+' len='+text.length);
+      let text=resp&&resp.body!=null?String(resp.body).trim():'';
+      step('bootstrap.raw','st='+(resp.statusCode||'')+' len='+text.length);
       if(!text){cb(null,'empty');return;}
       let json;
       if(isPlainJson(text))json=JSON.parse(text);
@@ -529,8 +608,7 @@ function postBootstrap(baseUrl, oldToken, cb){
       step('bootstrap.ok','left='+tokenLeftSec(tok)+'s len='+tok.length);
       cb(saved,null);
     }catch(e){cb(null,e.message||e);}
-  
-  });});
+  }).catch(function(e){cb(null,String(e));});
 }
 
 function refreshTokenViaBootstrap(seed,cb){
@@ -577,14 +655,13 @@ function refreshTokenViaBootstrap(seed,cb){
 }
 
 function fetchTokenFromGithub(cb){
+  if(typeof $task==='undefined'||!$task.fetch){cb(null);return;}
   const url=TOKEN_JSON_URL+(TOKEN_JSON_URL.indexOf('?')>=0?'&':'?')+'t='+Date.now();
   step('github.try',url);
-  httpRequest({url:url,method:'GET',headers:{'Accept':'*/*','User-Agent':'One1/1.0'}}, function(err, resp){
-    if(err||!resp){step('github.fail',String(err));cb(null);return;}
-
+  $task.fetch({url:url,method:'GET',headers:{'Accept':'*/*','User-Agent':'Quantumult%20X'}}).then(function(resp){
     try{
-      let text=resp.body!=null?String(resp.body).trim():'';
-      step('github.raw','st='+((resp.status||resp.statusCode)||'')+' len='+text.length+' head='+short(text,40));
+      let text=resp&&resp.body!=null?String(resp.body).trim():'';
+      step('github.raw','st='+(resp.statusCode||'')+' len='+text.length+' head='+short(text,40));
       if(!text){cb(null);return;}
       let obj=null;
       if(text.charAt(0)==='{'){
@@ -597,8 +674,8 @@ function fetchTokenFromGithub(cb){
       if(!obj||!obj.token_one){cb(null);return;}
       if(tokenExpiringSoon(obj.token_one)){
         step('github.expired','exp='+parseJwtExp(obj.token_one));
-        if(!IGNORE_TOKEN_EXPIRE){cb(null);return;}
-        step('github.expired','use anyway (IGNORE_TOKEN_EXPIRE)');
+        cb(null);
+        return;
       }
       const saved={
         tokenOne:String(obj.token_one),
@@ -614,8 +691,7 @@ function fetchTokenFromGithub(cb){
       };
       cb(saved);
     }catch(e){step('github.err',e.message||e);cb(null);}
-  
-  });cb(null);});
+  }).catch(function(e){step('github.fail',String(e));cb(null);});
 }
 
 /**
@@ -685,6 +761,7 @@ function ensureSession(cb){
 
 function postOne(session,path,data,cb){
   if(!session||!session.tokenOne){cb(null,'no token');return;}
+  if(typeof $task==='undefined'||!$task.fetch){cb(null,'no $task.fetch');return;}
   const base=String(session.baseUrl||ONE_DOMAINS[0]).replace(/\/+$/,'')+'/';
   const url=base+String(path).replace(/^\/+/,'');
   const ts=nowSec(),sign=buildSign(ts),query=formQuery(data);
@@ -695,12 +772,10 @@ function postOne(session,path,data,cb){
     platform:PLATFORM,ip:IP,'app-version':APP_VERSION,sign:sign,
   };
   step('post',path+' q='+query);
-  httpRequest({url:url,method:'POST',headers:headers,body:body}, function(err, resp){
-    if(err||!resp){cb(null,String(err||'no resp'));return;}
-
+  $task.fetch({url:url,method:'POST',headers:headers,body:body}).then(resp=>{
     try{
-      let text=resp.body!=null?String(resp.body).trim():'';
-      step('post.raw','st='+((resp.status||resp.statusCode)||'')+' len='+text.length);
+      let text=resp&&resp.body!=null?String(resp.body).trim():'';
+      step('post.raw','st='+(resp.statusCode||'')+' len='+text.length);
       if(!text){cb(null,'empty');return;}
       let json;
       if(isPlainJson(text))json=JSON.parse(text);
@@ -708,8 +783,8 @@ function postOne(session,path,data,cb){
       if(!(json.code==0||json.code==200||json.code=='0'||json.code=='200')){cb(null,'code='+json.code+' '+(json.message||json.msg||''));return;}
       cb(json.data!==undefined?json.data:json,null);
     }catch(e){cb(null,e.message||e);}
-  
-  });}
+  }).catch(e=>cb(null,String(e)));
+}
 
 function mediaUrl(session,path,type){
   if(!path)return'';
@@ -749,10 +824,7 @@ function pickVideos(session,item){
 function buildSen(url,title){let u='SenPlayer://x-callback-url/play?url='+encodeURIComponent(url);if(title)u+='&name='+encodeURIComponent(String(title).slice(0,80));return u;}
 function notify(title,subtitle,body,openUrl){
   const t=title||'One',s=subtitle||'',b=body||'';
-  try{if(typeof $notify==='function'){$notify(t,s,b,openUrl?{'open-url':openUrl}:{});return;}}catch(_){}
-  try{if(typeof $notification!=='undefined'&&$notification.post){$notification.post(t,s,b,openUrl?{url:openUrl}:{});return;}}catch(_){}
-  try{if(typeof $loon!=='undefined'){$notification.post(t,s,b,openUrl||'');return;}}catch(_){}
-  step('notify.fallback',openUrl);
+  platformNotify(t,s,b,openUrl);
 }
 
 function extractIdFromRequest(){
@@ -797,8 +869,8 @@ function doneResponse(json,wasEncrypted){
   const headers=Object.assign({},($response&&$response.headers)||{});
   delete headers['Content-Length'];delete headers['content-length'];
   const plain=JSON.stringify(json);
-  if(wasEncrypted){headers['Content-Type']='text/plain; charset=utf-8';$done({body:oneEnc(plain),headers});}
-  else{headers['Content-Type']='application/json; charset=utf-8';$done({body:plain,headers});}
+  if(wasEncrypted){headers['Content-Type']='text/plain; charset=utf-8';platformDone({body:oneEnc(plain),headers});}
+  else{headers['Content-Type']='application/json; charset=utf-8';platformDone({body:plain,headers});}
 }
 
 function markPurchased(node){
@@ -919,18 +991,18 @@ function handleResponse(){
   const path=getPath();
   let text='';try{text=($response&&$response.body)!=null?String($response.body):'';}catch(_){}
   text=text.trim();
-  if(!text){$done({});return;}
-  let parsed;try{parsed=parseResponseBody(text);}catch(e){step('parse.err',e.message||e);$done({});return;}
-  if(!parsed.json){$done({});return;}
+  if(!text){platformDone({});return;}
+  let parsed;try{parsed=parseResponseBody(text);}catch(e){step('parse.err',e.message||e);platformDone({});return;}
+  if(!parsed.json){platformDone({});return;}
   if(path.indexOf('/bootstrap')>=0){doneResponse(modifyBootstrap(parsed.json),parsed.encrypted);return;}
   if(path.indexOf('/vip/download')>=0){doneResponse(modifyVipDownload(parsed.json),parsed.encrypted);return;}
   if(path.indexOf('/article/detail')>=0){handleDetailAndNotify(parsed.json,parsed.encrypted);return;}
   if(isListPath(path)){handleListPurchased(parsed.json,parsed.encrypted);return;}
-  $done({});
+  platformDone({});
 }
 
 (function(){
   const isReq=typeof $request!=='undefined'&&typeof $response==='undefined';
-  if(isReq){$done({});return;}
+  if(isReq){platformDone({});return;}
   handleResponse();
 })();
