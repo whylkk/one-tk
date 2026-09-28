@@ -25,10 +25,11 @@
 /* ========== 多端兼容层（Surge / Loon / QX / Stash / Shadowrocket） ========== */
 const ENV = (() => {
   const has = (k) => k in globalThis;
+  // Egern 优先：有 ctx.notify 或全局 Egern 标记
+  if (has("Egern") || (typeof ctx !== "undefined" && ctx && typeof ctx.notify === "function")) return "Egern";
   if (has("$task")) return "Quantumult X";
   if (has("$loon")) return "Loon";
   if (has("$rocket")) return "Shadowrocket";
-  if (has("Egern")) return "Egern";
   if (globalThis.$environment && globalThis.$environment["surge-version"]) return "Surge";
   if (globalThis.$environment && globalThis.$environment["stash-version"]) return "Stash";
   return "Unknown";
@@ -97,23 +98,57 @@ function platformNotify(title, subtitle, body, openUrl) {
   title = title || "One";
   subtitle = subtitle || "";
   body = body || "";
+  openUrl = openUrl || "";
+
+  // 1) Egern 官方 API：必须用 action.type = openUrl 才能点击跳转
+  try {
+    if (typeof ctx !== "undefined" && ctx && typeof ctx.notify === "function") {
+      const opt = { title: title, subtitle: subtitle, body: body, sound: true };
+      if (openUrl) {
+        opt.action = { type: "openUrl", url: openUrl };
+      }
+      ctx.notify(opt);
+      return;
+    }
+  } catch (e) {
+    try { console.log("[notify][egern] " + (e && e.message ? e.message : e)); } catch (_) {}
+  }
+
+  // 2) Quantumult X
   try {
     if (typeof $notify === "function") {
       $notify(title, subtitle, body, openUrl ? { "open-url": openUrl } : {});
       return;
     }
   } catch (_) {}
+
+  // 3) Surge / Stash / Loon / Shadowrocket / 部分 Egern 兼容层
   try {
     if (typeof $notification !== "undefined" && $notification.post) {
-      if (ENV === "Surge" || ENV === "Stash") {
-        $notification.post(title, subtitle, body, openUrl ? { url: openUrl } : {});
-      } else {
-        $notification.post(title, subtitle, body, openUrl || "");
+      // 多种 open-url 字段名都试一遍，提高兼容性
+      const attempts = openUrl
+        ? [
+            { "open-url": openUrl },
+            { url: openUrl },
+            { openUrl: openUrl },
+            { "media-url": openUrl },
+          ]
+        : [{}];
+      for (let i = 0; i < attempts.length; i++) {
+        try {
+          $notification.post(title, subtitle, body, attempts[i]);
+          return;
+        } catch (_) {}
       }
-      return;
+      // Loon 有时第 4 参数直接是字符串 URL
+      try {
+        $notification.post(title, subtitle, body, openUrl || "");
+        return;
+      } catch (_) {}
     }
   } catch (_) {}
-  console.log("[notify] " + title + " | " + subtitle + " | " + body);
+
+  console.log("[notify] " + title + " | " + subtitle + " | " + body + (openUrl ? " | " + openUrl : ""));
 }
 
 /* 非 QX 环境补上 $task.fetch */
